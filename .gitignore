@@ -1,0 +1,17 @@
+# Java / Maven
+backend/target/
+*.class
+
+# IntelliJ / VS Code
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Environment variables / secrets
+.env
+*.env
+
+# Spring local configuration
+application-local.properties
