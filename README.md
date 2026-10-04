@@ -27,11 +27,6 @@ The project uses a monorepo setup containing the backend, frontend, and design d
 
 The backend is configured with an in-memory H2 database. On startup, a `DataSeeder` automatically populates the database with sample hostels, floors, locations, assets, and users, meaning it is **zero-setup** and ready to run for the October 9 mid-demo.
 
-### Prerequisites
-
-- Java 21 installed.
-- Maven (optional, wrapper is included).
-
 ### Running the Backend
 
 Navigate to the backend directory and use the Maven wrapper to run the application:
@@ -61,8 +56,3 @@ The backend includes a Swagger UI for exploring and testing the REST API.
 2. Authenticate using the `/api/auth/login` endpoint with one of the demo accounts.
 3. Use the returned JWT token to authorize subsequent requests in Swagger.
 
-## Milestones
-
-- **Sept 25:** Backend foundation complete (JPA entities, REST controllers) - **Done**
-- **Oct 9:** Mid-demo (RBAC, JWT, H2 seeded database) - **Current**
-- **Final Submission:** Integration of the Python AI Microservice and finalized frontend.
