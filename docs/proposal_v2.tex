@@ -1,0 +1,94 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{lmodern} % Load lmodern to avoid missing font issues
+
+\title{CS5013 Project Proposal \\ Brahmaputra Hostel Asset and Room Lifecycle Management System}
+\author{Akhilesh K.R (CS26E001) \and Mysha Ali (CS26E008)}
+\date{21 August 2026}
+
+\begin{document}
+\maketitle
+
+\section{Team information}
+\textbf{Team ID:} [team-16]
+\begin{itemize}[noitemsep]
+    \item \textbf{Member 1:} Akhilesh K.R, roll no. [CS26E001], department [CS], GitHub: \url{https://github.com/akhilesh-5}
+    \item \textbf{Member 2:} Mysha Ali, roll no. [CS26E008], department [CS], GitHub: \url{https://github.com/myshaali11}
+\end{itemize}
+\textbf{Primary contact email:} cs26e001@smail.iitm.ac.in
+
+\section{Problem statement}
+Brahmaputra Hostel has single, double, and triple-sharing rooms, along with common areas (corridors, washrooms, water dispensers), with multiple assets that need to be checked during occupancy, vacancy, and periodic inspections. Hostel staff currently need to verify and record the presence and condition of these assets across rooms. Maintaining consistent room-wise records and tracking changes or repeated damage over time can be difficult. The proposed system will centralize these records and inspection history for hostel staff, streamlining the workflow with a mobile-first approach.
+
+\section{Users and stakeholder}
+\textbf{Named stakeholder:} Ragul Gandhi M, Hostel Manager, Brahmaputra Hostel, IIT Madras. \\
+We approached the hostel staff to understand the current process of maintaining room and asset records. The stakeholder described the need for maintaining information about assets assigned to rooms and common areas, and their condition during occupancy and vacancy. Based on this discussion, we proposed a room-wise asset and inspection system for Brahmaputra Hostel to ease the process of maintenance and monthly checks. Our first conversation with the stakeholder took place on 18 August 2026.
+
+\section{Prior work and why it does not suffice}
+There are several existing general-purpose asset management systems that overlap with parts of the proposed system. We do not intend to replace these systems generally; instead, the proposed system focuses on the specific room-level workflow of Brahmaputra Hostel.
+\begin{enumerate}
+    \item \textbf{Google Sheets internal/manual workflow}: 
+    \textit{Overlap:} The hostel currently uses Google Sheets.
+    \textit{Gap:} The current workflow does not maintain a dedicated room-asset lifecycle. There is no automated flagging of condition changes.
+    \item \textbf{Snipe-IT}:
+    \textit{Overlap:} Web-based asset tracking.
+    \textit{Gap:} It is general-purpose; our system is specifically designed around hostel rooms, occupancy transitions, and common area inspections.
+    \item \textbf{SpaceBasic Hostel Management System}:
+    \textit{Overlap:} Room management, inventory.
+    \textit{Gap:} SpaceBasic is a general platform, whereas our project focuses on IITM Hostel's specific room-level and common-area asset lifecycle.
+\end{enumerate}
+
+\section{Tech stack}
+\begin{itemize}[noitemsep]
+    \item \textbf{Language:} Java (course policy) and Python (for AI microservice).
+    \item \textbf{Build system:} Maven
+    \item \textbf{Framework:} Spring Boot for the core backend.
+    \item \textbf{Frontend:} Flutter (cross-platform mobile toolkit) to allow staff to capture photos of asset conditions directly during walkthroughs.
+    \item \textbf{Database \& Storage:} PostgreSQL for structured data; AWS S3 (or local blob storage) for storing photographic evidence of assets.
+    \item \textbf{Key libraries:} Spring Web, Spring Data JPA, Spring Security, Jackson.
+    \item \textbf{Deployment:} Initially as locally hosted for stakeholder testing, with deployment to a suitable IIT Madras server.
+\end{itemize}
+
+\section{AI-usage statement and Features}
+We will use AI coding assistants (such as Claude Code, GitHub Copilot, ChatGPT, or Gemini) during this project, in line with the course policy. Every line of code we submit will be code we understand and can explain. 
+
+Additionally, the system will incorporate a hybrid AI component (developed via a Python microservice) to analyze text-based damage reports and flag anomalous degradation patterns over time, predicting when an asset might need preventative maintenance before complete failure.
+
+\section{Verification plan}
+\textbf{Test fixtures we will use:}
+\begin{itemize}[noitemsep]
+    \item A synthetic Brahmaputra dataset representing rooms, occupants, common areas, and associated assets.
+    \item Synthetic before-occupancy and after-vacancy inspection records, including photo uploads.
+    \item A small de-identified sample of actual records for validation.
+\end{itemize}
+\textbf{Acceptance criteria:}
+\begin{itemize}[noitemsep]
+    \item Staff can select a room/common area, view assets, record conditions, and upload photos via a mobile interface.
+    \item Students receive automated notifications for scheduled inspections or inventory changes.
+    \item Students can use a structured feedback and dispute workflow to formally contest a damage assessment before finalization.
+    \item The manager can view asset history and identify repeated issues automatically.
+\end{itemize}
+
+\section{Milestone plan}
+\begin{itemize}[noitemsep]
+    \item \textbf{11 Sep 2026 (Design doc):} Finalize data model, architecture, and build basic prototype of manager and student mobile interfaces.
+    \item \textbf{9 Oct 2026 (Mid-demo):} Core workflow runs end-to-end: asset assignment, condition recording, vacancy inspection.
+    \item \textbf{6 Nov 2026 (Final submission):} Stakeholder can run the complete system. The AI-based condition-analysis component will be integrated.
+\end{itemize}
+
+\section{Risks and Plan B}
+\begin{enumerate}
+    \item \textbf{Risk:} Lack of access to existing hostel portal. \textbf{Plan B:} Use a synthetic dataset.
+    \item \textbf{Risk:} Stakeholder has existing systems covering functions. \textbf{Plan B:} Narrow the project to specific unaddressed workflows.
+    \item \textbf{Risk:} Insufficient historical data for AI. \textbf{Plan B:} The core system will not depend on AI; evaluate the AI anomaly detection on a clearly documented synthetic dataset.
+    \item \textbf{Risk:} Inconsistent inspection data entry. \textbf{Plan B:} Keep the workflow short in the Flutter app, use predefined categories, and mandate minimal fields.
+\end{enumerate}
+
+\section*{Appendix A: Stakeholder acknowledgement email}
+Please see the attached document for the signed acknowledgement from the Hostel Manager, Brahmaputra Hostel.
+
+\end{document}

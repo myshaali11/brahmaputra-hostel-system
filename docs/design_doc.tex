@@ -1,0 +1,74 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{lmodern}
+\usepackage{graphicx}
+
+\title{CS5013 Phase 3: Design Document \\ Brahmaputra Hostel Asset and Room Lifecycle Management System}
+\author{Akhilesh K.R (CS26E001) \and Mysha Ali (CS26E008)}
+\date{11 September 2026}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+This document outlines the technical design for the Brahmaputra Hostel Asset and Room Lifecycle Management System. As part of Phase 3, this design document details the high-level architecture, module split, test plan, and a revised milestone plan, serving as a blueprint for the implementation phase.
+
+\section{Architecture}
+The system follows a decoupled client-server architecture with a clear separation of concerns, utilizing a primary backend, a dedicated AI microservice, and a mobile-first frontend.
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Frontend (Flutter):} A cross-platform mobile application providing tailored interfaces for Hostel Staff, the Hostel Manager, and Students. It handles UI rendering, local state management, and direct hardware interaction (e.g., camera access for photographic evidence).
+    \item \textbf{Core Backend (Java / Spring Boot):} The central RESTful API server. It manages business logic, routing, role-based access control (RBAC), and serves as the primary conduit between the frontend and the data stores.
+    \item \textbf{AI Microservice (Python):} A standalone service that interacts with the core backend to asynchronously process text-based damage reports and historical condition data. It exposes endpoints to flag anomalous degradation patterns and predict preventative maintenance needs.
+    \item \textbf{Relational Database (PostgreSQL):} Stores structured data including user profiles, room hierarchies, asset inventories, complaint logs, and inspection histories.
+    \item \textbf{Object Storage (AWS S3 / Local Blob Storage):} Handles unstructured data, specifically the high-resolution photographic evidence captured during room inspections.
+\end{itemize}
+
+\section{Module Split}
+To ensure maintainability and parallel development, the system is divided into five core logical modules:
+
+\subsection{User Authentication \& Authorization Module}
+Handles secure login, session management, and role verification (Manager, Staff, Student). Uses Spring Security and JWT to ensure users only access endpoints permitted for their role.
+
+\subsection{Asset \& Room Management Module}
+The foundational data module. It manages the hierarchy of Hostels $\rightarrow$ Floors $\rightarrow$ Rooms/Common Areas and maps individual assets (e.g., fans, water dispensers) to these locations.
+
+\subsection{Inspection \& Condition Tracking Module (Staff Workflow)}
+Allows staff to perform occupancy and vacancy walkthroughs. It supports updating asset conditions, logging new damages, and securely uploading photographic evidence to S3, linking the media URL to the specific inspection record.
+
+\subsection{Student Portal \& Complaint Module}
+Provides a dashboard for students to view the inventory of their allocated room. It includes a workflow for raising complaints regarding specific assets and a structured dispute system to formally contest damage assessments before finalization.
+
+\subsection{AI Predictive Maintenance Module}
+Consumes aggregated historical data and text reports. It analyzes patterns of asset degradation over time to generate alerts for preventative maintenance, passing these insights back to the Manager dashboard.
+
+\section{Test Plan}
+The verification of the system will be conducted in overlapping stages:
+
+\begin{itemize}
+    \item \textbf{Unit Testing:} 
+    \begin{itemize}[noitemsep]
+        \item \textit{Backend:} Use JUnit and Mockito to test business logic independently of the database (e.g., verifying RBAC rules, complaint status transitions).
+        \item \textit{Frontend:} Use Flutter's widget testing to verify UI components render correctly based on mock states.
+    \end{itemize}
+    \item \textbf{Integration Testing:} Validate the interaction between modules. Ensure that image uploads successfully yield S3 URLs that are then correctly stored in PostgreSQL via the Spring Boot API. Verify the Spring Boot backend can successfully communicate with the Python AI microservice.
+    \item \textbf{System \& Data Testing:} Run the end-to-end workflow using a synthetic Brahmaputra dataset (representing rooms, occupants, and assets) to verify that condition tracking and notifications behave as expected.
+    \item \textbf{User Acceptance Testing (UAT):} A small-scale rollout with the stakeholder (Hostel Manager) using a de-identified sample of actual records. Staff will test the mobile interface during a mock room walkthrough to ensure usability.
+\end{itemize}
+
+\section{Revised Milestone Plan}
+Based on the defined architecture and module split, the implementation timeline has been revised as follows:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{11 Sep 2026:} Phase 3 - Design doc submitted (Architecture, Module Split, Test Plan).
+    \item \textbf{25 Sep 2026:} Backend foundation complete (Database schema finalized, Auth Module, and basic CRUD for Asset Management Module implemented).
+    \item \textbf{9 Oct 2026 (Mid-demo):} Core workflow runs end-to-end. Staff can perform asset assignment, condition recording, and vacancy inspections via the Flutter app with basic photo upload capabilities.
+    \item \textbf{23 Oct 2026:} Student dashboard, complaint routing, and structured dispute workflows finalized. 
+    \item \textbf{6 Nov 2026 (Final submission):} AI-based predictive maintenance component fully integrated. Complete system ready for final stakeholder review and handoff.
+\end{itemize}
+
+\end{document}
