@@ -1,0 +1,71 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{lmodern}
+
+\title{Mid-Evaluation: Principles \& Practices \\ Brahmaputra Hostel System}
+\author{Akhilesh K.R (CS26E001) \and Mysha Ali (CS26E008)}
+\date{October 10, 2026}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+This document outlines the engineering principles and practices applied throughout the lifecycle of the Brahmaputra Hostel System. Leveraging Gemini Pro as our primary AI assistant, we adopted structured methodologies to ensure a maintainable, secure, and well-tested codebase.
+
+\section{Prompt Engineering}
+To maximize the utility of Gemini Pro, we followed a structured prompt engineering methodology:
+\begin{itemize}[noitemsep]
+    \item \textbf{Context Provisioning:} Instead of asking isolated questions, we provide the model with the exact project state, such as `pom.xml` dependencies, entity relationships, or specific compilation errors.
+    \item \textbf{Iterative Refinement:} For complex tasks (e.g., migrating from an insecure backend to JWT Role-Based Access Control), we started with a high-level architectural prompt, reviewed the model's design, and followed up with specific implementation prompts for services and controllers.
+    \item \textbf{Role and Constraint Prompting:} We explicitly constrained the model's output (e.g., ``use Spring Boot 3.4'', ``use H2 in-memory DB for demo'', ``no raw SQL inserts'').
+\end{itemize}
+\textit{Note: See Appendix A for sample prompts used during development.}
+
+\section{Debugging}
+Our debugging approach emphasizes a structured, isolated reproduction of issues before applying fixes:
+\begin{itemize}[noitemsep]
+    \item \textbf{Trace Analysis:} When our Maven build failed (e.g., missing DTO classes during the JWT migration), we isolated the compiler output, mapped the `cannot find symbol` errors to `AuthService.java`, and iteratively built the exact missing classes (`LoginRequest`, `UserDto`).
+    \item \textbf{Zero-Setup Reproduction:} By utilizing an H2 in-memory database and a `DataSeeder` (CommandLineRunner), we ensure that any environment-specific state is eliminated. This allows us to debug logic and API flow identically on any machine.
+    \item \textbf{API Validation via Swagger:} We heavily rely on Swagger UI (`/swagger-ui.html`) to dynamically test REST endpoints and debug request/response payloads in real-time, catching serialization or HTTP 403 Forbidden errors early.
+\end{itemize}
+
+\section{Version Control (Git)}
+Git is integral to managing both our codebase and our AI-assisted development workflow:
+\begin{itemize}[noitemsep]
+    \item \textbf{Atomic Commits:} We group related changes into logical commits with descriptive messages (e.g., \texttt{Setup backend foundation with JWT auth, role models, and demo seeder}) so evaluators and teammates can trace the exact evolution of the system.
+    \item \textbf{Safe AI Integration:} Before requesting a large-scale refactor from Gemini Pro, we ensure the current working tree is clean. If an AI-generated solution introduces regressions, we use `git checkout` or `git reset --hard` to rollback instantly.
+    \item \textbf{Tracking Context:} Important design decisions and the context of major AI prompts are summarized directly in commit messages and design documents tracked in the `docs/` directory.
+\end{itemize}
+
+\section{Testing, Refactoring \& Documentation}
+Quality assurance is maintained through strict architectural boundaries and self-documenting code:
+\begin{itemize}[noitemsep]
+    \item \textbf{Refactoring \& Modularization:} We refactored our legacy tightly-coupled codebase into a strict Layered Architecture (Controllers $\rightarrow$ Services $\rightarrow$ Repositories). We introduced Data Transfer Objects (DTOs) to shield internal Entity models (like `AppUser` and `Asset`) from the external API schema.
+    \item \textbf{Testing:} Our current methodology involves continuous automated build testing via Maven (`mvn clean compile test`) to ensure no breaking syntax changes. We are preparing JUnit/Mockito coverage for the business logic.
+    \item \textbf{Documentation:} All backend endpoints are self-documenting via OpenAPI/Swagger. Additionally, we maintain up-to-date repository documentation (`README.md`), which includes startup instructions, demo credentials, and architectural diagrams.
+\end{itemize}
+
+\vspace{1cm}
+\hrule
+\vspace{0.5cm}
+
+\appendix
+\section{Appendix A: Sample Prompts}
+The following prompts were used in interaction with Gemini Pro during our development lifecycle:
+
+\begin{enumerate}
+    \item \textbf{Architectural Migration Prompt:} \\
+    \textit{``We have an existing Spring Boot backend that uses a simple name-based string for staff identity. I want to replace this with a real JWT-based authentication system using Spring Security. Create an AppUser entity with a UserRole enum (MANAGER, STAFF, STUDENT), and update the AuthService to issue a JWT token. Use BCrypt for password hashing.''}
+    
+    \item \textbf{Targeted Debugging Prompt:} \\
+    \textit{``I am running `./mvnw clean compile` and getting the following error in DataSeeder.java: `incompatible types: int cannot be converted to com.iitm.hostel.model.Floor`. Here is my DataSeeder class and my Location model. How do I fix the instantiation of the Location entity to properly reference the Floor entity?''}
+    
+    \item \textbf{Documentation Generation Prompt:} \\
+    \textit{``Based on the controllers we just built (Auth, Dashboard, Hostel, Location, Asset, RoutineTask, Complaint), generate a detailed README.md. Include the project structure, how to run the app using the H2 database, and a markdown table listing the demo user credentials (admin, staff1, student1).''}
+\end{enumerate}
+
+\end{document}
