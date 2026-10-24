@@ -15,3 +15,7 @@ backend/target/
 
 # Spring local configuration
 application-local.properties
+
+# Large binaries & installers
+*.dmg
+*.dump

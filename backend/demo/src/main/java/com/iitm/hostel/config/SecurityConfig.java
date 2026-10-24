@@ -62,6 +62,8 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/auth/me", "/api/me/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/complaints").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/complaints/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/locations/*/assets").authenticated()
                         .requestMatchers("/api/dashboard/**").hasRole("MANAGER")
                         .requestMatchers(HttpMethod.POST, "/api/floors/*/locations").hasRole("MANAGER")
                         .requestMatchers("/api/**").hasAnyRole("MANAGER", "STAFF")
