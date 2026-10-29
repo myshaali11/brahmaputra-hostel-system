@@ -140,3 +140,68 @@ Stage 3 delivers a modern, responsive, and intuitive interface designed for stud
 ### 3.3 Verification & Build Status
 - `frontend`: `flutter analyze` $\to$ **No issues found!** (0 errors, 0 warnings).
 - `frontend`: `flutter test` $\to$ **All tests passed!**
+
+
+## Stage 4: Mid-Evaluation Architecture Slide, Defense Guide & Deliverables
+
+### 4.1 Overview & Objectives
+Stage 4 wraps up the engineering deliverable by producing the formal CS5013 Mid-Evaluation architecture slide, data flow model, two-minute presentation defense scripts, and a live code modification guide.
+
+---
+
+### 4.2 Key Architecture & Code Additions
+
+#### 1. System Architecture & Data Flow Diagram
+- **File:** `brahmaputra_mid_evaluation_architecture.png`
+  - High-resolution 16:9 widescreen diagram formatted specifically for the CS5013 evaluation board.
+  - Showcases the 8-stage lifecycle engine:
+    - **Akhilesh (Stages 1–4):** Ingestion & Parse $\to$ Classify & Validate $\to$ Rate Limit & Protect $\to$ Auth & Tokenize.
+    - **Mysha Ali (Stages 5–8):** Authorize & Route $\to$ Ticket Lifecycle $\to$ Audit & Inspect $\to$ Executive KPI Engine.
+    - **Shared Components:** Flutter Web/Mobile client, Spring Boot REST API, Swagger UI, and POI Data Engine.
+
+#### 2. Defense & Presentation Documentation
+- **File:** `docs/CS5013_MID_EVALUATION_GUIDE.md`
+  - Features timed presentation breakdown (0:00 to 2:00) with word-for-word scripts.
+  - Comprehensive matrix mapping tasks between Akhilesh and Mysha Ali.
+  - Step-by-step instructions for running Swagger UI, testing the Token Bucket 429 response, and navigating Flutter dashboards.
+  - Pre-solved solutions for 5 high-probability live code modifications.
+
+---
+
+### 4.3 Summary of All 4 Engineering Stages
+
+```mermaid
+flowchart TD
+    subgraph S1["Stage 1: Backend & Security"]
+        A1["Google OAuth on Smail"] --> A2["Regex Role Classification"]
+        A2 --> A3["Bucket4j Token Bucket Rate Limiter"]
+        A3 --> A4["Excel Roster Dynamic Importer"]
+    end
+
+    subgraph S2["Stage 2: Fullstack Integration"]
+        B1["Model Parity & Null-Safety"] --> B2["ApiService REST Client"]
+        B2 --> B3["Token Storage in SharedPreferences"]
+    end
+
+    subgraph S3["Stage 3: Dashboards & UI/UX"]
+        C1["Material 3 Deep-Navy Theme"] --> C2["Role-Based Route Guards"]
+        C2 --> C3["Student, Staff & Manager Portals"]
+        C3 --> C4["Quick-Fill Evaluator Chips"]
+    end
+
+    subgraph S4["Stage 4: Architecture & Evaluation"]
+        D1["CS5013 Architecture Slide PNG"] --> D2["2-Minute Joint Defense Script"]
+        D2 --> D3["Live Code Modification Guide"]
+    end
+
+    S1 --> S2 --> S3 --> S4
+```
+
+---
+
+### 4.4 Final Test & Build Verification
+| Target | Command | Result | Verification Notes |
+| :--- | :--- | :--- | :--- |
+| **Backend** | `./mvnw clean test-compile` | **BUILD SUCCESS** | 78 source files, 0 compilation errors, tests compiled |
+| **Frontend** | `flutter analyze` | **No issues found!** | 0 errors, 0 warnings across all screens & models |
+| **Frontend Tests**| `flutter test` | **All tests passed!** | Widget test mounts `BrahmaputraHostelApp` cleanly |
