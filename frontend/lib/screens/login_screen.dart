@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/google_oauth_service.dart';
 import 'student_dashboard_screen.dart';
 import 'staff_dashboard_screen.dart';
 import 'manager_dashboard_screen.dart';
@@ -74,6 +75,64 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleRealGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final googleData = await GoogleOAuthService.signInWithGooglePopup();
+      if (googleData != null) {
+        final email = (googleData['email'] as String? ?? '').trim().toLowerCase();
+        final name = googleData['name'] as String?;
+        final idToken = googleData['idToken'] as String? ?? 'google-oauth-token';
+
+        if (!email.endsWith('@smail.iitm.ac.in') && !email.endsWith('@iitm.ac.in')) {
+          if (!mounted) return;
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Access denied: Google account "$email" is not an official @smail.iitm.ac.in account.';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red.shade700,
+              content: Text('Access restricted: "$email" is not an @smail.iitm.ac.in account.'),
+            ),
+          );
+          return;
+        }
+
+        final user = await ApiService.googleLogin(
+          idToken: idToken,
+          email: email,
+          name: name,
+        );
+
+        if (!mounted) return;
+        _routeByRole(user.role);
+      } else {
+        // Fallback for non-web or when popup returns null
+        _showGoogleOAuthDialog();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final err = e.toString().replaceAll('Exception: ', '');
+      if (err.contains('popup_closed') || err.contains('cancelled') || err.contains('closed')) {
+        setState(() => _isLoading = false);
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = err;
+        });
+        // Open fallback dialog if Google API cannot be reached
+        _showGoogleOAuthDialog();
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -392,7 +451,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // Google OAuth on IITM Smail Button
                     OutlinedButton(
-                      onPressed: _isLoading ? null : _showGoogleOAuthDialog,
+                      onPressed: _isLoading ? null : _handleRealGoogleSignIn,
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 13),
                         side: BorderSide(color: Colors.grey.shade300),
