@@ -71,25 +71,41 @@ public class ExcelDataImporter implements CommandLineRunner {
                 return hostels.save(h);
             });
 
-        // Ensure Manager and Staff accounts always exist
+        // Ensure Manager and Staff accounts always exist with official smail emails
         if (users.findByUsername("admin").isEmpty()) {
             AppUser manager = new AppUser();
             manager.setUsername("admin");
             manager.setFullName("Admin Manager");
+            manager.setEmail("admin@smail.iitm.ac.in");
             manager.setPasswordHash(passwordEncoder.encode("password"));
             manager.setRole(UserRole.MANAGER);
             manager.setHostel(hostel);
             users.save(manager);
+        } else {
+            users.findByUsername("admin").ifPresent(m -> {
+                if (m.getEmail() == null) {
+                    m.setEmail("admin@smail.iitm.ac.in");
+                    users.save(m);
+                }
+            });
         }
 
         if (users.findByUsername("staff1").isEmpty()) {
             AppUser staff = new AppUser();
             staff.setUsername("staff1");
             staff.setFullName("Maintenance Staff 1");
+            staff.setEmail("staff1@smail.iitm.ac.in");
             staff.setPasswordHash(passwordEncoder.encode("password"));
             staff.setRole(UserRole.STAFF);
             staff.setHostel(hostel);
             users.save(staff);
+        } else {
+            users.findByUsername("staff1").ifPresent(s -> {
+                if (s.getEmail() == null) {
+                    s.setEmail("staff1@smail.iitm.ac.in");
+                    users.save(s);
+                }
+            });
         }
 
         Map<Integer, Floor> floorMap = new HashMap<>();
@@ -167,6 +183,7 @@ public class ExcelDataImporter implements CommandLineRunner {
 
                 String name = cell(formatter, row, 0);
                 String rollNumber = cell(formatter, row, 1);
+                String email = cell(formatter, row, 2);
                 String roomNumber = cell(formatter, row, 3);
                 String floorText = cell(formatter, row, 4);
 
@@ -180,6 +197,8 @@ public class ExcelDataImporter implements CommandLineRunner {
                 }
 
                 String username = rollNumber.trim().toLowerCase();
+                String resolvedEmail = email.isBlank() ? (username + "@smail.iitm.ac.in") : email.trim().toLowerCase();
+
                 AppUser user = users.findByUsername(username)
                     .orElseGet(() -> {
                         AppUser u = new AppUser();
@@ -195,6 +214,7 @@ public class ExcelDataImporter implements CommandLineRunner {
                 }
 
                 user.setFullName(name);
+                user.setEmail(resolvedEmail);
                 user.setRole(UserRole.STUDENT);
                 user.setHostel(hostel);
                 user.setAllocatedRoom(room);
@@ -206,6 +226,7 @@ public class ExcelDataImporter implements CommandLineRunner {
             System.out.println("✅ Synthetic Dataset Imported Successfully!");
             System.out.println("   Rooms Processed: " + roomsCreated);
             System.out.println("   Students Enrolled: " + studentsImported);
+            System.out.println("   All accounts configured with @smail.iitm.ac.in emails");
             System.out.println("   Password for all synthetic accounts: password");
             System.out.println("=================================================");
         }

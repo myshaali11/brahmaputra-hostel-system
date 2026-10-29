@@ -17,7 +17,11 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.iitm.hostel.service.RateLimitingService;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -49,7 +53,23 @@ public class SecurityConfig {
     public static final String ROLE_CLAIM = "role";
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public RateLimitingFilter rateLimitingFilter(RateLimitingService rateLimitingService) {
+        return new RateLimitingFilter(rateLimitingService, new ObjectMapper());
+    }
+
+    /**
+     * Disables outer servlet filter registration for RateLimitingFilter so it only
+     * runs inside the Spring Security filter chain after authentication has completed.
+     */
+    @Bean
+    public FilterRegistrationBean<RateLimitingFilter> rateLimitingFilterRegistration(RateLimitingFilter filter) {
+        FilterRegistrationBean<RateLimitingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, RateLimitingFilter rateLimitingFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable()) // stateless bearer-token API: no cookies, so no CSRF surface
                 .cors(Customizer.withDefaults())
@@ -57,7 +77,7 @@ public class SecurityConfig {
                 .headers(h -> h.frameOptions(f -> f.sameOrigin())) // H2 console renders in frames
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/login", "/error").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/google", "/error").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/auth/me", "/api/me/**").authenticated()
@@ -68,7 +88,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/floors/*/locations").hasRole("MANAGER")
                         .requestMatchers("/api/**").hasAnyRole("MANAGER", "STAFF")
                         .anyRequest().denyAll())
-                .oauth2ResourceServer(o -> o.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+                .oauth2ResourceServer(o -> o.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
+                .addFilterBefore(rateLimitingFilter, AuthorizationFilter.class);
         return http.build();
     }
 

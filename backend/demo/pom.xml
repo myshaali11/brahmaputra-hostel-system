@@ -49,6 +49,17 @@
 			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
 
+		<!-- Rate Limiting: Bucket4j with Caffeine in-memory cache -->
+		<dependency>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j-core</artifactId>
+			<version>8.10.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+
 		<!-- Databases: H2 for zero-setup demo runs, PostgreSQL for real deployments -->
 		<dependency>
 			<groupId>com.h2database</groupId>

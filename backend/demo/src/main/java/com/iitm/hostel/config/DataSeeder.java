@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.core.annotation.Order;
+
 @Order(1)
 @Configuration
 public class DataSeeder {
@@ -56,6 +57,7 @@ public class DataSeeder {
                 AppUser manager = new AppUser();
                 manager.setUsername("admin");
                 manager.setFullName("Admin Manager");
+                manager.setEmail("admin@smail.iitm.ac.in");
                 manager.setPasswordHash(passwordEncoder.encode("password"));
                 manager.setRole(UserRole.MANAGER);
                 manager.setHostel(hostel);
@@ -66,6 +68,7 @@ public class DataSeeder {
                 AppUser staff = new AppUser();
                 staff.setUsername("staff1");
                 staff.setFullName("Maintenance Staff 1");
+                staff.setEmail("staff1@smail.iitm.ac.in");
                 staff.setPasswordHash(passwordEncoder.encode("password"));
                 staff.setRole(UserRole.STAFF);
                 staff.setHostel(hostel);
@@ -76,6 +79,7 @@ public class DataSeeder {
                 AppUser student = new AppUser();
                 student.setUsername("student1");
                 student.setFullName("Student One");
+                student.setEmail("student1@smail.iitm.ac.in");
                 student.setPasswordHash(passwordEncoder.encode("password"));
                 student.setRole(UserRole.STUDENT);
                 student.setHostel(hostel);
@@ -83,7 +87,7 @@ public class DataSeeder {
                 userRepository.save(student);
             }
             
-            System.out.println("✅ Base accounts verified: admin, staff1, student1");
+            System.out.println("✅ Base accounts verified: admin, staff1, student1 (all configured with @smail.iitm.ac.in)");
         };
     }
 }
