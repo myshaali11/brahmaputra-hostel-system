@@ -145,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                 ],
 
-                // Quick selector for demo evaluation
+                // Quick selector for testing
                 const Text('Quick Select Smail Account:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 Wrap(
@@ -428,9 +428,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Divider(),
                     const SizedBox(height: 10),
 
-                    // Quick-login chips for easy testing & demo presentation
+                    // Quick-login chips for testing and verification
                     Text(
-                      'Demo Quick Fill:',
+                      'Quick Sign-In Accounts:',
                       style: theme.textTheme.labelMedium?.copyWith(color: Colors.grey.shade600),
                     ),
                     const SizedBox(height: 8),
