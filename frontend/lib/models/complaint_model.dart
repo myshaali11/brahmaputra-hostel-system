@@ -12,6 +12,8 @@ class ComplaintModel {
   final String? reportedBy;
   final String? createdAt;
   final String? resolvedAt;
+  final String? resolvedBy;
+  final String? resolutionNotes;
 
   ComplaintModel({
     required this.id,
@@ -27,6 +29,8 @@ class ComplaintModel {
     this.reportedBy,
     this.createdAt,
     this.resolvedAt,
+    this.resolvedBy,
+    this.resolutionNotes,
   });
 
   factory ComplaintModel.fromJson(Map<String, dynamic> json) {
@@ -50,8 +54,13 @@ class ComplaintModel {
       reportedBy: json['reportedBy'],
       createdAt: json['createdAt'],
       resolvedAt: json['resolvedAt'],
+      resolvedBy: json['resolvedBy'],
+      resolutionNotes: json['resolutionNotes'],
     );
   }
+
+  String get displayIvrsNumber => ivrsNumber ?? 'TT$id';
+  String get displayLocationName => locationName ?? 'Location #$locationId';
 
   bool get isOpen => status == 'OPEN';
   bool get isInProgress => status == 'IN_PROGRESS';

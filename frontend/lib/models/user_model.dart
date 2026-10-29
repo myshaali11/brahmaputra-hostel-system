@@ -1,6 +1,7 @@
 class UserModel {
   final String username;
   final String fullName;
+  final String? email;
   final String role; // MANAGER, STAFF, STUDENT
   final int? allocatedRoomId;
   final String? roomName;
@@ -8,6 +9,7 @@ class UserModel {
   UserModel({
     required this.username,
     required this.fullName,
+    this.email,
     required this.role,
     this.allocatedRoomId,
     this.roomName,
@@ -17,6 +19,7 @@ class UserModel {
     return UserModel(
       username: json['username'] ?? '',
       fullName: json['fullName'] ?? '',
+      email: json['email'],
       role: json['role'] ?? '',
       allocatedRoomId: json['allocatedRoomId'] is int
           ? json['allocatedRoomId']
@@ -31,6 +34,7 @@ class UserModel {
     return {
       'username': username,
       'fullName': fullName,
+      'email': email,
       'role': role,
       'allocatedRoomId': allocatedRoomId,
       'roomName': roomName,
