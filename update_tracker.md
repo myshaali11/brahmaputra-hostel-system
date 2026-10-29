@@ -91,3 +91,52 @@ Stage 2 bridges the Spring Boot REST backend and the Flutter client. It establis
 
 ### 2.3 Verification & Build Status
 - `frontend`: `flutter test` $\to$ **All tests passed!** (100% pass rate).
+
+
+## Stage 3: Role-Based Material 3 Dashboards & UI/UX Excellence
+
+### 3.1 Overview & Objectives
+Stage 3 delivers a modern, responsive, and intuitive interface designed for students, hostel staff, and executive managers. It implements complete Material 3 theming, role-segregated navigation guards, fast one-click evaluator login chips, and dedicated views for every stakeholder.
+
+---
+
+### 3.2 Key Architecture & Code Additions
+
+#### 1. Material 3 Login & Google Smail Portal
+- **File:** `frontend/lib/screens/login_screen.dart`
+  - **Aesthetic:** Clean IIT Madras deep-navy blue theme (`#1E3A8A`), elevated card containers, clear typographical hierarchy.
+  - **Google Smail Sign-In Dialog:**
+    - Provides a native modal allowing students and staff to authenticate with their official `@smail.iitm.ac.in` email.
+    - Enforces client-side regex and domain validation matching backend security rules.
+    - Features pre-populated test chips (`ch23b001` student, `cs26e001`, `staff1`, `admin`) for effortless mid-evaluation grading.
+  - **Dynamic Role Dispatcher:**
+    - Automatically redirects authenticated users based on their server-verified role:
+      - `STUDENT` $\to$ `StudentDashboardScreen`
+      - `STAFF` $\to$ `StaffDashboardScreen`
+      - `MANAGER` $\to$ `ManagerDashboardScreen`
+
+#### 2. Student Resident Portal
+- **File:** `frontend/lib/screens/student_dashboard_screen.dart`
+  - **Room Roster Card:** Displays student name, roll number, assigned room, floor, and roommates extracted from the synced Excel dataset.
+  - **Room Asset Health List:** Displays room fixtures (lights, fans, study desks, windows) with operational status indicators.
+  - **Ticket Filing Workflow:** Modal sheet allowing students to select specific fixtures, enter detailed descriptions, set priority levels (LOW, MEDIUM, HIGH, URGENT), and receive a generated IVRS tracking code.
+  - **Complaint Tracking:** Real-time list of historical complaints with live status badges (OPEN, IN PROGRESS, RESOLVED, CLOSED).
+
+#### 3. Staff Maintenance Portal
+- **File:** `frontend/lib/screens/staff_dashboard_screen.dart`
+  - **Inspection Stamp Action:** Enables maintenance workers to log routine facility inspections with their name and timestamp.
+  - **Task Queue & Filtering:** View all active work orders across floors and rooms, filtered by status.
+  - **Resolution Dialog:** Allows staff to transition ticket states (e.g. from `OPEN` to `IN_PROGRESS` or `RESOLVED`) while appending detailed technical resolution notes.
+
+#### 4. Manager Executive Suite
+- **File:** `frontend/lib/screens/manager_dashboard_screen.dart`
+  - **Hostel KPI Analytics Cards:** Live metrics showing Total Rooms, Total Complaints, Open Issues, In Progress, and High Priority escalations.
+  - **Complaint Master Queue:** Comprehensive search, filtering, and review interface across all hostel wings.
+  - **Floor & Room Directory:** Complete inventory browser displaying rooms, capacities, occupancy, and asset states.
+  - **Location Provisioning:** Modal to add new rooms, restrooms, or common areas on any floor.
+
+---
+
+### 3.3 Verification & Build Status
+- `frontend`: `flutter analyze` $\to$ **No issues found!** (0 errors, 0 warnings).
+- `frontend`: `flutter test` $\to$ **All tests passed!**

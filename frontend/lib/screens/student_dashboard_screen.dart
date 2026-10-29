@@ -62,12 +62,27 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     }
   }
 
-  void _handleLogout() {
-    ApiService.logout();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+  void _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out of the Student Portal?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign Out')),
+        ],
+      ),
     );
+
+    if (confirmed == true) {
+      await ApiService.logout();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   void _showReportDialog({AssetModel? preselectedAsset}) {
@@ -102,11 +117,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Report Room Issue',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                      const Text(
+                        'Raise Maintenance Complaint',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
@@ -119,15 +132,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
 
                   // Asset Dropdown
                   DropdownButtonFormField<int?>(
-                    value: selectedAssetId,
+                    initialValue: selectedAssetId,
                     decoration: const InputDecoration(
-                      labelText: 'Select Fixture (Optional)',
+                      labelText: 'Select Fixture / Asset',
                       border: OutlineInputBorder(),
                     ),
                     items: [
                       const DropdownMenuItem<int?>(
                         value: null,
-                        child: Text('General Room Issue'),
+                        child: Text('General Room / Structural Issue'),
                       ),
                       ..._assets.map((a) => DropdownMenuItem<int?>(
                             value: a.id,
@@ -150,7 +163,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                   TextField(
                     controller: titleController,
                     decoration: const InputDecoration(
-                      labelText: 'Title / Subject',
+                      labelText: 'Title / Summary',
+                      hintText: 'e.g. Fan making loud noise',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -161,8 +175,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     controller: descController,
                     maxLines: 3,
                     decoration: const InputDecoration(
-                      labelText: 'Describe the problem...',
-                      hintText: 'e.g. Fan making loud squeaking noise, study table drawer broken',
+                      labelText: 'Detailed Description',
+                      hintText: 'Describe what is wrong and where in the room...',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -170,42 +184,42 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
 
                   // Priority Dropdown
                   DropdownButtonFormField<String>(
-                    value: priority,
+                    initialValue: priority,
                     decoration: const InputDecoration(
-                      labelText: 'Priority',
+                      labelText: 'Priority Level',
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'LOW', child: Text('Low')),
-                      DropdownMenuItem(value: 'MEDIUM', child: Text('Medium')),
-                      DropdownMenuItem(value: 'HIGH', child: Text('High')),
-                      DropdownMenuItem(value: 'URGENT', child: Text('Urgent')),
+                      DropdownMenuItem(value: 'LOW', child: Text('Low (Can wait a few days)')),
+                      DropdownMenuItem(value: 'MEDIUM', child: Text('Medium (Normal attention)')),
+                      DropdownMenuItem(value: 'HIGH', child: Text('High (Urgent daily impact)')),
+                      DropdownMenuItem(value: 'URGENT', child: Text('Urgent (Immediate safety/power)')),
                     ],
                     onChanged: (val) {
-                      if (val != null) setModalState(() => priority = val);
+                      setModalState(() => priority = val ?? 'MEDIUM');
                     },
                   ),
                   const SizedBox(height: 20),
 
                   // Submit Button
                   FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E3A8A),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
                     icon: isSubmitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.send),
-                    label: Text(isSubmitting ? 'Submitting...' : 'Submit Complaint'),
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send_rounded),
+                    label: const Text('Submit Complaint', style: TextStyle(fontSize: 16)),
                     onPressed: isSubmitting
                         ? null
                         : () async {
-                            final desc = descController.text.trim();
                             final title = titleController.text.trim();
+                            final desc = descController.text.trim();
 
-                            if (desc.isEmpty) {
+                            if (title.isEmpty || desc.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Please describe the problem')),
+                                const SnackBar(content: Text('Please enter a title and description.')),
                               );
                               return;
                             }
@@ -216,22 +230,25 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                               await ApiService.createComplaint(
                                 locationId: _roomId,
                                 assetId: selectedAssetId,
-                                title: title.isEmpty ? 'Room Issue' : title,
+                                title: title,
                                 description: desc,
                                 priority: priority,
                               );
 
-                              if (!mounted) return;
+                              if (!ctx.mounted) return;
                               Navigator.pop(ctx);
+                              if (!mounted) return;
+                              _loadData();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   backgroundColor: Colors.green,
-                                  content: Text('Complaint filed! Asset status updated.'),
+                                  content: Text('Complaint filed! Ticket logged in hostel queue.'),
                                 ),
                               );
-                              _loadData(); // Reload live data
+                              _loadData();
                             } catch (e) {
                               setModalState(() => isSubmitting = false);
+                              if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   backgroundColor: Colors.red,
@@ -251,7 +268,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
   }
 
   Color _getStatusColor(String status) {
-    switch (status) {
+    switch (status.toUpperCase()) {
       case 'WORKING':
       case 'RESOLVED':
       case 'CLOSED':
@@ -282,12 +299,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     final user = ApiService.currentUser;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(user?.fullName ?? 'Student Portal', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text('Hostel: Brahmaputra • $_roomName', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+            Text('Brahmaputra Hostel · Allocated: $_roomName', style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
         actions: [
@@ -297,19 +315,29 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
             onPressed: _loadData,
           ),
           IconButton(
-            tooltip: 'Logout',
+            tooltip: 'Sign Out',
             icon: const Icon(Icons.logout),
             onPressed: _handleLogout,
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.white,
+          indicatorColor: Colors.amber,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
           tabs: [
-            Tab(icon: const Icon(Icons.inventory_2_outlined), text: 'Fixtures (${_assets.length})'),
-            Tab(icon: const Icon(Icons.confirmation_number_outlined), text: 'Complaints (${_complaints.length})'),
+            Tab(icon: const Icon(Icons.inventory_2_outlined), text: 'Room Fixtures (${_assets.length})'),
+            Tab(icon: const Icon(Icons.confirmation_number_outlined), text: 'My Complaints (${_complaints.length})'),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF1E3A8A),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_alert_outlined),
+        label: const Text('Report Issue'),
+        onPressed: () => _showReportDialog(),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -322,7 +350,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                       children: [
                         const Icon(Icons.error_outline, size: 48, color: Colors.red),
                         const SizedBox(height: 12),
-                        Text(_error!, textAlign: TextAlign.center),
+                        Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
                         const SizedBox(height: 16),
                         FilledButton(onPressed: _loadData, child: const Text('Retry')),
                       ],
@@ -338,34 +366,35 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                       child: _assets.isEmpty
                           ? const Center(child: Text('No assets recorded for this room.'))
                           : ListView.builder(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(14),
                               itemCount: _assets.length,
                               itemBuilder: (ctx, i) {
                                 final asset = _assets[i];
                                 final badgeColor = _getStatusColor(asset.status);
 
                                 return Card(
-                                  margin: const EdgeInsets.only(bottom: 10),
+                                  margin: const EdgeInsets.only(bottom: 12),
                                   elevation: 2,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    side: BorderSide(color: badgeColor.withOpacity(0.3), width: 1.5),
+                                    borderRadius: BorderRadius.circular(14),
+                                    side: BorderSide(color: badgeColor.withValues(alpha: 0.3), width: 1.5),
                                   ),
+                                  color: Colors.white,
                                   child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                     leading: CircleAvatar(
-                                      backgroundColor: badgeColor.withOpacity(0.15),
+                                      backgroundColor: badgeColor.withValues(alpha: 0.15),
                                       child: Icon(_getAssetIcon(asset.name), color: badgeColor),
                                     ),
-                                    title: Text(asset.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    title: Text(asset.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                     subtitle: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         const SizedBox(height: 4),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                           decoration: BoxDecoration(
-                                            color: badgeColor.withOpacity(0.1),
+                                            color: badgeColor.withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
@@ -379,23 +408,19 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                                         ),
                                         if (asset.comment != null && asset.comment!.isNotEmpty) ...[
                                           const SizedBox(height: 4),
-                                          Text(
-                                            'Note: ${asset.comment}',
-                                            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                                          ),
+                                          Text('Note: ${asset.comment!}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                                         ],
                                       ],
                                     ),
-                                    trailing: asset.hasComplaint
-                                        ? const Tooltip(
-                                            message: 'Complaint Active',
-                                            child: Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                                          )
-                                        : TextButton.icon(
-                                            icon: const Icon(Icons.report_problem_outlined, size: 16),
-                                            label: const Text('Report'),
-                                            onPressed: () => _showReportDialog(preselectedAsset: asset),
-                                          ),
+                                    trailing: OutlinedButton(
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        foregroundColor: badgeColor,
+                                        side: BorderSide(color: badgeColor),
+                                      ),
+                                      onPressed: () => _showReportDialog(preselectedAsset: asset),
+                                      child: const Text('Report'),
+                                    ),
                                   ),
                                 );
                               },
@@ -406,20 +431,32 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     RefreshIndicator(
                       onRefresh: _loadData,
                       child: _complaints.isEmpty
-                          ? const Center(child: Text('No complaints filed for your room yet.'))
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.check_circle_outline, size: 56, color: Colors.green),
+                                  const SizedBox(height: 12),
+                                  const Text('No complaints logged for your room!', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  Text('All room fixtures are in working condition.', style: TextStyle(color: Colors.grey.shade600)),
+                                ],
+                              ),
+                            )
                           : ListView.builder(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(14),
                               itemCount: _complaints.length,
                               itemBuilder: (ctx, i) {
                                 final c = _complaints[i];
                                 final statusColor = _getStatusColor(c.status);
 
                                 return Card(
-                                  margin: const EdgeInsets.only(bottom: 10),
+                                  margin: const EdgeInsets.only(bottom: 12),
                                   elevation: 2,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  color: Colors.white,
                                   child: Padding(
-                                    padding: const EdgeInsets.all(14.0),
+                                    padding: const EdgeInsets.all(16),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
@@ -435,11 +472,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                               decoration: BoxDecoration(
-                                                color: statusColor.withOpacity(0.12),
+                                                color: statusColor.withValues(alpha: 0.12),
                                                 borderRadius: BorderRadius.circular(6),
                                               ),
                                               child: Text(
-                                                c.status,
+                                                c.status.replaceAll('_', ' '),
                                                 style: TextStyle(
                                                   color: statusColor,
                                                   fontWeight: FontWeight.bold,
@@ -450,29 +487,52 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                                           ],
                                         ),
                                         const SizedBox(height: 6),
-                                        Text(c.description, style: TextStyle(color: Colors.grey.shade800)),
+                                        Text(c.description, style: TextStyle(color: Colors.grey.shade800, fontSize: 14)),
                                         const SizedBox(height: 10),
                                         const Divider(height: 1),
                                         const SizedBox(height: 8),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text(
-                                              c.ivrsNumber != null ? 'Ticket: ${c.ivrsNumber}' : 'Room: $_roomName',
-                                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                                            ),
-                                            Text(
-                                              'Priority: ${c.priority}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: c.priority == 'HIGH' || c.priority == 'URGENT'
-                                                    ? Colors.red
-                                                    : Colors.blueGrey,
+                                            Text('Ticket: ${c.displayIvrsNumber}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
+                                            if (c.assetName != null) ...[
+                                              const SizedBox(width: 8),
+                                              Text('·', style: TextStyle(color: Colors.grey.shade500)),
+                                              const SizedBox(width: 8),
+                                              Text('Item: ${c.assetName!}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                                            ],
+                                            const Spacer(),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey.shade100,
+                                                borderRadius: BorderRadius.circular(4),
                                               ),
+                                              child: Text(c.priority, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
                                             ),
                                           ],
                                         ),
+                                        if (c.resolutionNotes != null && c.resolutionNotes!.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade50,
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.task_alt, color: Colors.green, size: 16),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Resolution: ${c.resolutionNotes!}',
+                                                    style: TextStyle(color: Colors.green.shade900, fontSize: 12),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),
@@ -482,11 +542,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     ),
                   ],
                 ),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add_alert_outlined),
-        label: const Text('Report Issue'),
-        onPressed: () => _showReportDialog(),
-      ),
     );
   }
 }
