@@ -14,6 +14,10 @@ class ComplaintModel {
   final String? resolvedAt;
   final String? resolvedBy;
   final String? resolutionNotes;
+  final String? aiCategory;
+  final String? aiPriority;
+  final String? aiRecommendation;
+  final bool isHazard;
 
   ComplaintModel({
     required this.id,
@@ -31,6 +35,10 @@ class ComplaintModel {
     this.resolvedAt,
     this.resolvedBy,
     this.resolutionNotes,
+    this.aiCategory,
+    this.aiPriority,
+    this.aiRecommendation,
+    this.isHazard = false,
   });
 
   factory ComplaintModel.fromJson(Map<String, dynamic> json) {
@@ -56,6 +64,10 @@ class ComplaintModel {
       resolvedAt: json['resolvedAt'],
       resolvedBy: json['resolvedBy'],
       resolutionNotes: json['resolutionNotes'],
+      aiCategory: json['aiCategory'],
+      aiPriority: json['aiPriority'],
+      aiRecommendation: json['aiRecommendation'],
+      isHazard: json['isHazard'] == true,
     );
   }
 

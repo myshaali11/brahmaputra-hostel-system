@@ -61,4 +61,17 @@ public class Complaint {
 
     @Column(name = "resolution_notes", length = 1000)
     private String resolutionNotes;
+
+    // AI Predictive Maintenance & Triage Attributes
+    @Column(name = "ai_category")
+    private String aiCategory;
+
+    @Column(name = "ai_priority")
+    private String aiPriority;
+
+    @Column(name = "ai_recommendation", length = 1000)
+    private String aiRecommendation;
+
+    @Column(name = "is_hazard")
+    private Boolean isHazard = false;
 }

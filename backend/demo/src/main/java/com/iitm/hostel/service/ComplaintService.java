@@ -36,11 +36,13 @@ public class ComplaintService {
     private final ComplaintRepository complaintRepository;
     private final LocationRepository locationRepository;
     private final AssetRepository assetRepository;
+    private final AiAnalyticsService aiAnalyticsService;
 
-    public ComplaintService(ComplaintRepository complaintRepository, LocationRepository locationRepository, AssetRepository assetRepository) {
+    public ComplaintService(ComplaintRepository complaintRepository, LocationRepository locationRepository, AssetRepository assetRepository, AiAnalyticsService aiAnalyticsService) {
         this.complaintRepository = complaintRepository;
         this.locationRepository = locationRepository;
         this.assetRepository = assetRepository;
+        this.aiAnalyticsService = aiAnalyticsService;
     }
 
     public List<ComplaintDto> getComplaints(Long hostelId, Long floorId, Long locationId, Boolean activeOnly) {
@@ -83,16 +85,32 @@ public class ComplaintService {
         complaint.setReportedBy(request.reportedBy());
         complaint.setIvrsNumber(generateIvrsNumber());
 
+        String assetName = null;
         if (request.assetId() != null) {
             Asset asset = assetRepository.findById(request.assetId())
                     .filter(item -> item.getLocation().getId().equals(request.locationId()))
                     .orElseThrow(() -> new ResourceNotFoundException("Asset " + request.assetId() + " not found in this location"));
             complaint.setAsset(asset);
+            assetName = asset.getName();
             // Flipping the checklist toggle off is what raises the complaint, so keep the asset state in sync.
             asset.setStatus(AssetStatus.COMPLAINT_RAISED);
             asset.setComment(complaint.getDescription());
             asset.setLastCheckedAt(LocalDateTime.now());
             assetRepository.save(asset);
+        }
+
+        // AI-Powered Automated Triage & Anomaly Risk Analysis
+        var aiTriage = aiAnalyticsService.analyzeComplaint(complaint.getTitle(), complaint.getDescription(), assetName);
+        if (aiTriage != null) {
+            complaint.setAiCategory(aiTriage.predictedCategory());
+            complaint.setAiPriority(aiTriage.predictedPriority());
+            complaint.setAiRecommendation(aiTriage.recommendation());
+            complaint.setIsHazard(aiTriage.isHazard());
+
+            // If AI detects high-risk electrical/structural hazard, automatically bump priority to URGENT
+            if (Boolean.TRUE.equals(aiTriage.isHazard())) {
+                complaint.setPriority(Priority.HIGH);
+            }
         }
 
         Complaint saved = complaintRepository.save(complaint);
@@ -160,7 +178,11 @@ public class ComplaintService {
                 complaint.getCreatedAt() != null ? complaint.getCreatedAt().format(TS) : null,
                 complaint.getResolvedAt() != null ? complaint.getResolvedAt().format(TS) : null,
                 complaint.getResolvedBy(),
-                complaint.getResolutionNotes()
+                complaint.getResolutionNotes(),
+                complaint.getAiCategory(),
+                complaint.getAiPriority(),
+                complaint.getAiRecommendation(),
+                complaint.getIsHazard()
         );
     }
 }

@@ -20,5 +20,9 @@ public record ComplaintDto(
         String createdAt,
         String resolvedAt,
         String resolvedBy,
-        String resolutionNotes
+        String resolutionNotes,
+        String aiCategory,
+        String aiPriority,
+        String aiRecommendation,
+        Boolean isHazard
 ) {}
