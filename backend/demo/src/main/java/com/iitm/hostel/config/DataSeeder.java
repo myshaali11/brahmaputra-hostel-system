@@ -43,10 +43,10 @@ public class DataSeeder {
                         return floorRepository.save(f);
                     });
 
-            Location room1 = locationRepository.findByNameAndFloorId("Room 101", floor.getId())
+            Location room1 = locationRepository.findByNameAndFloorId("F01", floor.getId())
                     .orElseGet(() -> {
                         Location r = new Location();
-                        r.setName("Room 101");
+                        r.setName("F01");
                         r.setFloor(floor);
                         r.setType(LocationType.ROOM);
                         r.setRoomType(RoomType.DOUBLE);

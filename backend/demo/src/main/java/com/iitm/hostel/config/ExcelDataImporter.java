@@ -45,9 +45,28 @@ public class ExcelDataImporter implements CommandLineRunner {
         this.passwordEncoder = passwordEncoder;
     }
 
+    public static String normalizeRoomName(String originalRoom, int floorNumber) {
+        if (originalRoom == null || originalRoom.isBlank()) return "Room";
+        String digits = originalRoom.replaceAll("\\D+", "");
+        int index = 1;
+        if (!digits.isEmpty()) {
+            int fullNum = Integer.parseInt(digits);
+            index = fullNum % 100;
+            if (index == 0) index = fullNum;
+        }
+        String formattedNum = String.format("%02d", index);
+        return switch (floorNumber) {
+            case 0 -> "G" + formattedNum;
+            case 1 -> "F" + formattedNum;
+            case 2 -> "S" + formattedNum;
+            case 3 -> "T" + formattedNum;
+            case 4 -> "Fo" + formattedNum;
+            default -> "R" + floorNumber + "-" + formattedNum;
+        };
+    }
+
     @Override
     public void run(String... args) throws Exception {
-        // Multi-path search so it works regardless of working directory
         List<Path> candidates = List.of(
             Path.of("../../database/brahmaputra_synthetic_dataset_boys_only.xlsx"),
             Path.of("../database/brahmaputra_synthetic_dataset_boys_only.xlsx"),
@@ -56,13 +75,6 @@ public class ExcelDataImporter implements CommandLineRunner {
         );
 
         Path file = candidates.stream().filter(Files::exists).findFirst().orElse(null);
-
-        if (file == null) {
-            System.out.println("Excel dataset not found; skipping synthetic data import.");
-            return;
-        }
-
-        System.out.println("Starting synthetic dataset import from: " + file.toAbsolutePath());
 
         Hostel hostel = hostels.findByName("Brahmaputra")
             .orElseGet(() -> {
@@ -111,12 +123,22 @@ public class ExcelDataImporter implements CommandLineRunner {
         Map<Integer, Floor> floorMap = new HashMap<>();
         Map<String, Location> roomMap = new HashMap<>();
 
+        // 1. Provision Ground Floor (Floor 0) with G01-G10, Washrooms & Laundry Area
+        provisionGroundFloor(hostel, floorMap, roomMap);
+
+        if (file == null) {
+            System.out.println("Excel dataset not found; skipping synthetic data import.");
+            return;
+        }
+
+        System.out.println("Starting synthetic dataset import from: " + file.toAbsolutePath());
+
         try (InputStream input = Files.newInputStream(file);
              Workbook workbook = WorkbookFactory.create(input)) {
 
             DataFormatter formatter = new DataFormatter();
 
-            // 1. Import Rooms
+            // 2. Import Rooms from Excel (Floors 1 to 4)
             Sheet roomSheet = workbook.getSheet("Rooms");
             int roomsCreated = 0;
 
@@ -124,13 +146,15 @@ public class ExcelDataImporter implements CommandLineRunner {
                 Row row = roomSheet.getRow(i);
                 if (row == null) continue;
 
-                String roomNumber = cell(formatter, row, 0);
+                String rawRoomNumber = cell(formatter, row, 0);
                 String floorText = cell(formatter, row, 1);
                 String typeText = cell(formatter, row, 2);
 
-                if (roomNumber.isBlank() || floorText.isBlank() || typeText.isBlank()) continue;
+                if (rawRoomNumber.isBlank() || floorText.isBlank() || typeText.isBlank()) continue;
 
                 int floorNumber = Integer.parseInt(floorText);
+                String normalizedRoom = normalizeRoomName(rawRoomNumber, floorNumber);
+
                 RoomType parsedType;
                 try {
                     parsedType = RoomType.valueOf(typeText.trim().toUpperCase());
@@ -154,10 +178,10 @@ public class ExcelDataImporter implements CommandLineRunner {
                 );
 
                 Location room = locations
-                    .findByNameAndFloorId(roomNumber, floor.getId())
+                    .findByNameAndFloorId(normalizedRoom, floor.getId())
                     .orElseGet(() -> {
                         Location loc = new Location();
-                        loc.setName(roomNumber);
+                        loc.setName(normalizedRoom);
                         loc.setFloor(floor);
                         loc.setType(LocationType.ROOM);
                         loc.setRoomType(roomType);
@@ -166,14 +190,23 @@ public class ExcelDataImporter implements CommandLineRunner {
 
                 room.setRoomType(roomType);
                 room = locations.save(room);
-                roomMap.put(floorNumber + "|" + roomNumber, room);
+
+                // Store mappings for student allocation lookups
+                roomMap.put(floorNumber + "|" + normalizedRoom, room);
+                roomMap.put(floorNumber + "|" + rawRoomNumber, room);
+                roomMap.put(rawRoomNumber, room);
+                roomMap.put(normalizedRoom, room);
                 roomsCreated++;
 
                 // Provision standard room assets if none exist yet
                 provisionRoomAssetsIfMissing(room);
+
+                // Provision washrooms & laundry for this floor
+                provisionWashroomsForFloor(hostel, floor);
+                provisionLaundryForFloor(hostel, floor);
             }
 
-            // 2. Import Students & map them to allocated rooms
+            // 3. Import Students & map them to allocated rooms
             Sheet studentSheet = workbook.getSheet("Students");
             int studentsImported = 0;
 
@@ -184,13 +217,20 @@ public class ExcelDataImporter implements CommandLineRunner {
                 String name = cell(formatter, row, 0);
                 String rollNumber = cell(formatter, row, 1);
                 String email = cell(formatter, row, 2);
-                String roomNumber = cell(formatter, row, 3);
+                String rawRoomNumber = cell(formatter, row, 3);
                 String floorText = cell(formatter, row, 4);
 
-                if (name.isBlank() || rollNumber.isBlank() || roomNumber.isBlank() || floorText.isBlank()) continue;
+                if (name.isBlank() || rollNumber.isBlank() || rawRoomNumber.isBlank() || floorText.isBlank()) continue;
 
                 int floorNumber = Integer.parseInt(floorText);
-                Location room = roomMap.get(floorNumber + "|" + roomNumber);
+                String normalizedRoom = normalizeRoomName(rawRoomNumber, floorNumber);
+                Location room = roomMap.get(floorNumber + "|" + normalizedRoom);
+                if (room == null) {
+                    room = roomMap.get(floorNumber + "|" + rawRoomNumber);
+                }
+                if (room == null) {
+                    room = roomMap.get(normalizedRoom);
+                }
 
                 if (room == null) {
                     continue; // Skip unmapped room gracefully
@@ -208,7 +248,6 @@ public class ExcelDataImporter implements CommandLineRunner {
                         return u;
                     });
 
-                // Do not overwrite manager or staff accounts
                 if (user.getId() != null && user.getRole() != UserRole.STUDENT) {
                     continue;
                 }
@@ -223,12 +262,138 @@ public class ExcelDataImporter implements CommandLineRunner {
             }
 
             System.out.println("=================================================");
-            System.out.println("✅ Synthetic Dataset Imported Successfully!");
-            System.out.println("   Rooms Processed: " + roomsCreated);
+            System.out.println("✅ Synthetic Dataset & Amenities Imported Successfully!");
+            System.out.println("   Rooms Processed: " + roomsCreated + " across floors 0-4");
+            System.out.println("   Washrooms & Washing Machine Amenities active on every floor");
             System.out.println("   Students Enrolled: " + studentsImported);
             System.out.println("   All accounts configured with @smail.iitm.ac.in emails");
             System.out.println("   Password for all synthetic accounts: password");
             System.out.println("=================================================");
+        }
+    }
+
+    private void provisionGroundFloor(Hostel hostel, Map<Integer, Floor> floorMap, Map<String, Location> roomMap) {
+        Floor groundFloor = floorMap.computeIfAbsent(0, num -> floors
+            .findByHostelIdOrderByFloorNumberAsc(hostel.getId())
+            .stream()
+            .filter(f -> f.getFloorNumber().equals(0))
+            .findFirst()
+            .orElseGet(() -> {
+                Floor f = new Floor();
+                f.setFloorNumber(0);
+                f.setHostel(hostel);
+                return floors.save(f);
+            })
+        );
+
+        for (int i = 1; i <= 10; i++) {
+            String roomName = String.format("G%02d", i);
+            Location room = locations.findByNameAndFloorId(roomName, groundFloor.getId())
+                .orElseGet(() -> {
+                    Location loc = new Location();
+                    loc.setName(roomName);
+                    loc.setFloor(groundFloor);
+                    loc.setType(LocationType.ROOM);
+                    loc.setRoomType(RoomType.DOUBLE);
+                    return locations.save(loc);
+                });
+            roomMap.put("0|" + roomName, room);
+            roomMap.put(roomName, room);
+            provisionRoomAssetsIfMissing(room);
+        }
+
+        provisionWashroomsForFloor(hostel, groundFloor);
+        provisionLaundryForFloor(hostel, groundFloor);
+    }
+
+    private void provisionWashroomsForFloor(Hostel hostel, Floor floor) {
+        int floorNum = floor.getFloorNumber();
+        int startId;
+        int endId;
+        String prefix;
+        if (floorNum == 0) {
+            startId = 1;
+            endId = 10;
+            prefix = "RR-G";
+        } else if (floorNum == 1) {
+            startId = 1;
+            endId = 10;
+            prefix = "RR";
+        } else if (floorNum == 2) {
+            startId = 11;
+            endId = 20;
+            prefix = "RR";
+        } else if (floorNum == 3) {
+            startId = 21;
+            endId = 30;
+            prefix = "RR";
+        } else if (floorNum == 4) {
+            startId = 31;
+            endId = 40;
+            prefix = "RR";
+        } else {
+            startId = (floorNum * 10) + 1;
+            endId = startId + 9;
+            prefix = "RR" + floorNum + "-";
+        }
+
+        List<String> restroomAssets = List.of(
+            "Wash Basin & Tap",
+            "Flush Valve & Cistern",
+            "Shower Head",
+            "Health Faucet / Jet Spray",
+            "Exhaust Fan",
+            "Mirror"
+        );
+
+        for (int i = startId; i <= endId; i++) {
+            String washroomName = prefix + i;
+            Location restroom = locations.findByNameAndFloorId(washroomName, floor.getId())
+                .orElseGet(() -> {
+                    Location loc = new Location();
+                    loc.setName(washroomName);
+                    loc.setFloor(floor);
+                    loc.setType(LocationType.RESTROOM);
+                    return locations.save(loc);
+                });
+
+            if (assets.findByLocationIdOrderByNameAsc(restroom.getId()).isEmpty()) {
+                for (String assetName : restroomAssets) {
+                    Asset a = new Asset();
+                    a.setName(assetName);
+                    a.setLocation(restroom);
+                    a.setStatus(AssetStatus.WORKING);
+                    assets.save(a);
+                }
+            }
+        }
+    }
+
+    private void provisionLaundryForFloor(Hostel hostel, Floor floor) {
+        String laundryName = "Laundry & Wash Area (Floor " + floor.getFloorNumber() + ")";
+        Location laundry = locations.findByNameAndFloorId(laundryName, floor.getId())
+            .orElseGet(() -> {
+                Location loc = new Location();
+                loc.setName(laundryName);
+                loc.setFloor(floor);
+                loc.setType(LocationType.COMMON_AREA);
+                return locations.save(loc);
+            });
+
+        if (assets.findByLocationIdOrderByNameAsc(laundry.getId()).isEmpty()) {
+            List<String> laundryAssets = List.of(
+                "Washing Machine 1 (Front Load 8kg)",
+                "Washing Machine 2 (Top Load 7.5kg)",
+                "Water Purifier (RO + UV Dispenser)",
+                "Ironing Station & Table"
+            );
+            for (String aName : laundryAssets) {
+                Asset a = new Asset();
+                a.setName(aName);
+                a.setLocation(laundry);
+                a.setStatus(AssetStatus.WORKING);
+                assets.save(a);
+            }
         }
     }
 

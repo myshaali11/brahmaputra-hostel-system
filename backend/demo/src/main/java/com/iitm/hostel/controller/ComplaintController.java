@@ -2,6 +2,7 @@ package com.iitm.hostel.controller;
 
 import com.iitm.hostel.dto.ComplaintDto;
 import com.iitm.hostel.dto.CreateComplaintRequest;
+import com.iitm.hostel.dto.CreateDisputeRequest;
 import com.iitm.hostel.dto.UpdateComplaintStatusRequest;
 import com.iitm.hostel.service.ComplaintService;
 import jakarta.validation.Valid;
@@ -42,5 +43,10 @@ public class ComplaintController {
     @PatchMapping("/{complaintId}")
     public ComplaintDto updateStatus(@PathVariable Long complaintId, @Valid @RequestBody UpdateComplaintStatusRequest request) {
         return complaintService.updateStatus(complaintId, request);
+    }
+
+    @PostMapping("/{complaintId}/dispute")
+    public ResponseEntity<ComplaintDto> fileDispute(@PathVariable Long complaintId, @Valid @RequestBody CreateDisputeRequest request) {
+        return ResponseEntity.ok(complaintService.fileDispute(complaintId, request));
     }
 }

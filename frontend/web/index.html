@@ -31,6 +31,12 @@
           return;
         }
 
+        // Verify authorized JavaScript origin
+        if (window.location.hostname === 'localhost' && window.location.port !== '3000' && window.location.port !== '8080') {
+          reject(new Error("PORT_MISMATCH: Google OAuth requires origin http://localhost:3000 (currently on port " + window.location.port + "). Run with: flutter run -d chrome --web-port 3000"));
+          return;
+        }
+
         try {
           const client = google.accounts.oauth2.initTokenClient({
             client_id: window.googleClientId,

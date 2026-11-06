@@ -74,4 +74,20 @@ public class Complaint {
 
     @Column(name = "is_hazard")
     private Boolean isHazard = false;
+
+    // Structured Dispute & Damage Contest Attributes
+    @Column(name = "is_disputed")
+    private Boolean isDisputed = false;
+
+    @Column(name = "dispute_reason", length = 1000)
+    private String disputeReason;
+
+    @Column(name = "dispute_raised_by")
+    private String disputeRaisedBy;
+
+    @Column(name = "dispute_raised_at")
+    private LocalDateTime disputeRaisedAt;
+
+    @Column(name = "dispute_resolution_notes", length = 1000)
+    private String disputeResolutionNotes;
 }

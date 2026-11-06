@@ -128,9 +128,20 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         setState(() {
           _isLoading = false;
-          _errorMessage = err;
+          _errorMessage = err.contains('PORT_MISMATCH')
+              ? 'Port mismatch: Google OAuth requires port 3000. Use Smail instant sign-in or run with --web-port 3000.'
+              : err;
         });
-        // Open fallback dialog if Google API cannot be reached
+        if (err.contains('PORT_MISMATCH') || err.contains('origin_mismatch')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.orange,
+              content: Text('Notice: Google OAuth origin requires port 3000. Launching Smail instant sign-in...'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        // Open fallback dialog if Google API cannot be reached or origin differs
         _showGoogleOAuthDialog();
       }
     } finally {

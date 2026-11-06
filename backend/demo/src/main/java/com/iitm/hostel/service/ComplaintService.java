@@ -2,6 +2,7 @@ package com.iitm.hostel.service;
 
 import com.iitm.hostel.dto.ComplaintDto;
 import com.iitm.hostel.dto.CreateComplaintRequest;
+import com.iitm.hostel.dto.CreateDisputeRequest;
 import com.iitm.hostel.dto.UpdateComplaintStatusRequest;
 import com.iitm.hostel.enums.AssetStatus;
 import com.iitm.hostel.enums.ComplaintStatus;
@@ -54,11 +55,14 @@ public class ComplaintService {
         } else if (hostelId != null) {
             complaints = complaintRepository.findByLocationFloorHostelIdOrderByCreatedAtDesc(hostelId);
         } else if (Boolean.TRUE.equals(activeOnly)) {
-            complaints = complaintRepository.findByStatusInOrderByCreatedAtDesc(List.of(ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS));
+            complaints = complaintRepository.findByStatusInOrderByCreatedAtDesc(List.of(ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS, ComplaintStatus.DISPUTED));
         } else {
             complaints = complaintRepository.findAllByOrderByCreatedAtDesc();
         }
-        return complaints.stream().map(this::toDto).toList();
+
+        return complaints.stream()
+                .map(this::toDto)
+                .toList();
     }
 
     @Transactional
@@ -67,19 +71,23 @@ public class ComplaintService {
                 .orElseThrow(() -> new ResourceNotFoundException("Location " + request.locationId() + " not found"));
 
         Priority priority;
+        String rawPriority = request.priority() != null ? request.priority().trim().toUpperCase() : "MEDIUM";
         try {
-            priority = request.priority() == null || request.priority().isBlank()
-                    ? Priority.MEDIUM
-                    : Priority.valueOf(request.priority().toUpperCase());
+            priority = Priority.valueOf(rawPriority);
         } catch (IllegalArgumentException ex) {
-            throw new InvalidRequestException("Unknown priority: " + request.priority());
+            if ("URGENT".equalsIgnoreCase(rawPriority)) {
+                priority = Priority.URGENT;
+            } else if ("CRITICAL".equalsIgnoreCase(rawPriority)) {
+                priority = Priority.CRITICAL;
+            } else {
+                throw new InvalidRequestException("Unknown priority: " + request.priority());
+            }
         }
 
         Complaint complaint = new Complaint();
         complaint.setLocation(location);
-        complaint.setTitle(request.title() == null || request.title().isBlank() ? "Asset issue" : request.title());
-        complaint.setDescription(request.description() == null || request.description().isBlank()
-                ? "No description supplied" : request.description());
+        complaint.setTitle(request.title());
+        complaint.setDescription(request.description());
         complaint.setPriority(priority);
         complaint.setStatus(ComplaintStatus.OPEN);
         complaint.setReportedBy(request.reportedBy());
@@ -134,6 +142,10 @@ public class ComplaintService {
             complaint.setResolutionNotes(request.resolutionNotes());
         }
 
+        if (request.disputeResolutionNotes() != null && !request.disputeResolutionNotes().isBlank()) {
+            complaint.setDisputeResolutionNotes(request.disputeResolutionNotes());
+        }
+
         if (status == ComplaintStatus.RESOLVED || status == ComplaintStatus.CLOSED) {
             complaint.setResolvedAt(LocalDateTime.now());
             complaint.setResolvedBy(request.resolvedBy());
@@ -146,6 +158,21 @@ public class ComplaintService {
                 assetRepository.save(asset);
             }
         }
+
+        Complaint saved = complaintRepository.save(complaint);
+        return toDto(saved);
+    }
+
+    @Transactional
+    public ComplaintDto fileDispute(Long complaintId, CreateDisputeRequest request) {
+        Complaint complaint = complaintRepository.findById(complaintId)
+                .orElseThrow(() -> new ResourceNotFoundException("Complaint " + complaintId + " not found"));
+
+        complaint.setStatus(ComplaintStatus.DISPUTED);
+        complaint.setIsDisputed(true);
+        complaint.setDisputeReason(request.reason());
+        complaint.setDisputeRaisedBy(request.studentName() != null ? request.studentName() : complaint.getReportedBy());
+        complaint.setDisputeRaisedAt(LocalDateTime.now());
 
         Complaint saved = complaintRepository.save(complaint);
         return toDto(saved);
@@ -182,7 +209,12 @@ public class ComplaintService {
                 complaint.getAiCategory(),
                 complaint.getAiPriority(),
                 complaint.getAiRecommendation(),
-                complaint.getIsHazard()
+                complaint.getIsHazard(),
+                Boolean.TRUE.equals(complaint.getIsDisputed()),
+                complaint.getDisputeReason(),
+                complaint.getDisputeRaisedBy(),
+                complaint.getDisputeRaisedAt() != null ? complaint.getDisputeRaisedAt().format(TS) : null,
+                complaint.getDisputeResolutionNotes()
         );
     }
 }
