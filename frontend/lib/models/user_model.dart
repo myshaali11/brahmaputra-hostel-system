@@ -5,6 +5,8 @@ class UserModel {
   final String role; // MANAGER, STAFF, STUDENT
   final int? allocatedRoomId;
   final String? roomName;
+  final int? floorId;
+  final int? floorNumber;
 
   UserModel({
     required this.username,
@@ -13,6 +15,8 @@ class UserModel {
     required this.role,
     this.allocatedRoomId,
     this.roomName,
+    this.floorId,
+    this.floorNumber,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +31,16 @@ class UserModel {
               ? int.tryParse(json['allocatedRoomId'].toString())
               : null),
       roomName: json['roomName'],
+      floorId: json['floorId'] is int
+          ? json['floorId']
+          : (json['floorId'] != null
+              ? int.tryParse(json['floorId'].toString())
+              : null),
+      floorNumber: json['floorNumber'] is int
+          ? json['floorNumber']
+          : (json['floorNumber'] != null
+              ? int.tryParse(json['floorNumber'].toString())
+              : null),
     );
   }
 
@@ -38,6 +52,8 @@ class UserModel {
       'role': role,
       'allocatedRoomId': allocatedRoomId,
       'roomName': roomName,
+      'floorId': floorId,
+      'floorNumber': floorNumber,
     };
   }
 }

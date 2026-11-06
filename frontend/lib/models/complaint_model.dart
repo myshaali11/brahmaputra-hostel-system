@@ -7,7 +7,7 @@ class ComplaintModel {
   final String? assetName;
   final String title;
   final String description;
-  final String status; // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  final String status; // OPEN, IN_PROGRESS, RESOLVED, CLOSED, DISPUTED
   final String priority; // LOW, MEDIUM, HIGH, URGENT
   final String? reportedBy;
   final String? createdAt;
@@ -18,6 +18,11 @@ class ComplaintModel {
   final String? aiPriority;
   final String? aiRecommendation;
   final bool isHazard;
+  final bool isDisputed;
+  final String? disputeReason;
+  final String? disputeRaisedBy;
+  final String? disputeRaisedAt;
+  final String? disputeResolutionNotes;
 
   ComplaintModel({
     required this.id,
@@ -39,6 +44,11 @@ class ComplaintModel {
     this.aiPriority,
     this.aiRecommendation,
     this.isHazard = false,
+    this.isDisputed = false,
+    this.disputeReason,
+    this.disputeRaisedBy,
+    this.disputeRaisedAt,
+    this.disputeResolutionNotes,
   });
 
   factory ComplaintModel.fromJson(Map<String, dynamic> json) {
@@ -68,6 +78,11 @@ class ComplaintModel {
       aiPriority: json['aiPriority'],
       aiRecommendation: json['aiRecommendation'],
       isHazard: json['isHazard'] == true,
+      isDisputed: json['isDisputed'] == true || json['status'] == 'DISPUTED',
+      disputeReason: json['disputeReason'],
+      disputeRaisedBy: json['disputeRaisedBy'],
+      disputeRaisedAt: json['disputeRaisedAt'],
+      disputeResolutionNotes: json['disputeResolutionNotes'],
     );
   }
 

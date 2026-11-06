@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/complaint_model.dart';
+import '../models/asset_model.dart';
 import 'login_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
@@ -200,6 +201,150 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
     );
   }
 
+  void _showAdjudicateDisputeDialog(ComplaintModel complaint) {
+    String decision = 'WAIVE'; // WAIVE, UPHOLD, REOPEN
+    final notesController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.gavel_rounded, color: Colors.purple.shade700),
+              const SizedBox(width: 8),
+              const Text('Adjudicate Dispute'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.help_outline, size: 16, color: Colors.amber.shade900),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Contested by: ${complaint.disputeRaisedBy ?? "Resident"}',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.amber.shade900),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '"${complaint.disputeReason ?? "No reason provided"}"',
+                        style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: decision,
+                  decoration: const InputDecoration(
+                    labelText: 'Adjudication Action',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'WAIVE',
+                      child: Text('Waive Assessment / Penalty (Resolve)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'UPHOLD',
+                      child: Text('Uphold Assessment (Resolve)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'REOPEN',
+                      child: Text('Re-open for Physical Re-inspection (In Progress)'),
+                    ),
+                  ],
+                  onChanged: (v) => setDialogState(() => decision = v ?? 'WAIVE'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notesController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Executive Adjudication Remarks',
+                    hintText: 'Enter formal remarks explaining the decision...',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              icon: isSubmitting
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check, size: 16),
+              label: const Text('Finalize Adjudication'),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final notes = notesController.text.trim();
+                      if (notes.isEmpty) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Please enter adjudication remarks.')),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => isSubmitting = true);
+                      try {
+                        String newStatus = (decision == 'REOPEN') ? 'IN_PROGRESS' : 'RESOLVED';
+                        String fullNotes = '[Manager Adjudication: $decision] $notes';
+
+                        await ApiService.updateComplaintStatus(
+                          complaintId: complaint.id,
+                          status: newStatus,
+                          resolutionNotes: (newStatus == 'RESOLVED') ? fullNotes : complaint.resolutionNotes,
+                          disputeResolutionNotes: fullNotes,
+                        );
+
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+                        if (!mounted) return;
+                        _loadDashboardData();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Dispute for ${complaint.displayIvrsNumber} successfully adjudicated ($decision).'),
+                            backgroundColor: Colors.green.shade700,
+                          ),
+                        );
+                      } catch (e) {
+                        setDialogState(() => isSubmitting = false);
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+                        );
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -291,6 +436,8 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
     final inProgress = s['inProgressComplaints'] ?? 0;
     final resolved = s['resolvedComplaints'] ?? 0;
     final inspectionRate = (s['inspectionRate'] as num?)?.toDouble() ?? 100.0;
+    final disputedComplaints = s['disputedComplaints'] ??
+        _allComplaints.where((c) => c.status == 'DISPUTED' || c.isDisputed).length;
 
     return RefreshIndicator(
       onRefresh: _loadDashboardData,
@@ -352,7 +499,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
           ),
           const SizedBox(height: 16),
 
-          // 4 Grid KPI Cards
+          // Grid KPI Cards
           Row(
             children: [
               Expanded(
@@ -372,6 +519,16 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
                   color: Colors.orange.shade700,
                   bgColor: Colors.orange.shade50,
                   icon: Icons.hourglass_top,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMetricCard(
+                  title: 'Disputes',
+                  value: '$disputedComplaints',
+                  color: Colors.purple.shade700,
+                  bgColor: Colors.purple.shade50,
+                  icon: Icons.gavel_rounded,
                 ),
               ),
             ],
@@ -450,25 +607,32 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(14.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 13, fontWeight: FontWeight.w500)),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ),
                 CircleAvatar(
-                  radius: 14,
+                  radius: 12,
                   backgroundColor: bgColor,
-                  child: Icon(icon, size: 16, color: color),
+                  child: Icon(icon, size: 14, color: color),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               value,
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color),
             ),
           ],
         ),
@@ -479,6 +643,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
   Widget _buildComplaintsTab(ThemeData theme) {
     final filtered = _allComplaints.where((c) {
       if (_complaintStatusFilter == 'ALL') return true;
+      if (_complaintStatusFilter == 'DISPUTED') return c.status == 'DISPUTED' || c.isDisputed;
       return c.status.toUpperCase() == _complaintStatusFilter;
     }).toList();
 
@@ -497,6 +662,8 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
                 _buildFilterChip('OPEN', 'Open (${_allComplaints.where((c) => c.status == 'OPEN').length})'),
                 const SizedBox(width: 8),
                 _buildFilterChip('IN_PROGRESS', 'In Progress (${_allComplaints.where((c) => c.status == 'IN_PROGRESS').length})'),
+                const SizedBox(width: 8),
+                _buildFilterChip('DISPUTED', 'Disputed (${_allComplaints.where((c) => c.status == 'DISPUTED' || c.isDisputed).length})'),
                 const SizedBox(width: 8),
                 _buildFilterChip('RESOLVED', 'Resolved (${_allComplaints.where((c) => c.status == 'RESOLVED').length})'),
               ],
@@ -522,30 +689,104 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
                   itemCount: filtered.length,
                   itemBuilder: (ctx, i) {
                     final c = filtered[i];
+                    final isDisputed = c.status == 'DISPUTED' || c.isDisputed;
+
                     return Card(
                       elevation: 1,
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: isDisputed ? Colors.amber.shade400 : Colors.grey.shade200,
+                          width: isDisputed ? 1.5 : 1.0,
+                        ),
+                      ),
                       color: Colors.white,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Header row: IVRS + Badges
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  c.displayIvrsNumber,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                                Row(
+                                  children: [
+                                    Text(
+                                      c.displayIvrsNumber,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                                    ),
+                                  ],
                                 ),
                                 _buildStatusBadge(c.status),
                               ],
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 8),
                             Text(c.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                             const SizedBox(height: 4),
                             Text(c.description, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+
+                            // Contested Dispute Banner
+                            if (isDisputed) ...[
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.amber.shade300),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.gavel_rounded, size: 16, color: Colors.purple.shade700),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            'Assessment Contested by ${c.disputeRaisedBy ?? "Resident"}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: Colors.purple.shade900,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '"${c.disputeReason ?? "No reason given"}"',
+                                      style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey.shade800),
+                                    ),
+                                    if (c.disputeResolutionNotes != null && c.disputeResolutionNotes!.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Prior Adjudication: ${c.disputeResolutionNotes}',
+                                        style: TextStyle(fontSize: 11, color: Colors.green.shade800, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 8),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: FilledButton.tonalIcon(
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: Colors.purple.shade100,
+                                          foregroundColor: Colors.purple.shade900,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        icon: const Icon(Icons.gavel, size: 14),
+                                        label: const Text('Adjudicate Dispute', style: TextStyle(fontSize: 12)),
+                                        onPressed: () => _showAdjudicateDisputeDialog(c),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+
                             const SizedBox(height: 10),
                             Row(
                               children: [
@@ -559,7 +800,14 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
                                   Text(c.assetName!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                                 ],
                                 const Spacer(),
-                                Text('Priority: ${c.priority}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _priorityColor(c.priority))),
+                                Text(
+                                  'Priority: ${c.priority}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: _priorityColor(c.priority),
+                                  ),
+                                ),
                               ],
                             ),
                           ],
@@ -597,6 +845,9 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
     } else if (status == 'IN_PROGRESS') {
       bg = Colors.orange.shade50;
       fg = Colors.orange.shade800;
+    } else if (status == 'DISPUTED') {
+      bg = Colors.purple.shade50;
+      fg = Colors.purple.shade700;
     } else if (status == 'RESOLVED') {
       bg = Colors.green.shade50;
       fg = Colors.green.shade700;
@@ -665,13 +916,15 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
                     itemBuilder: (ctx, li) {
                       final loc = locations[li];
                       final isOk = loc['status'] == 'OK';
-                      return ListTile(
-                        leading: Icon(
-                          loc['type'] == 'ROOM' ? Icons.meeting_room_outlined : Icons.wb_shade_outlined,
-                          color: const Color(0xFF1E3A8A),
-                        ),
-                        title: Text(loc['name'] ?? 'Unnamed'),
-                        subtitle: Text('Type: ${loc['type']} · Complaints: ${loc['activeComplaintsCount'] ?? 0}'),
+                      final type = loc['type'] ?? 'ROOM';
+                      IconData locIcon = Icons.meeting_room_outlined;
+                      if (type == 'RESTROOM') locIcon = Icons.bathtub_outlined;
+                      if (type == 'COMMON_AREA') locIcon = Icons.local_laundry_service_outlined;
+
+                      return ExpansionTile(
+                        leading: Icon(locIcon, color: const Color(0xFF1E3A8A)),
+                        title: Text('${loc['name'] ?? 'Unnamed'} ($type)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        subtitle: Text('Complaints: ${loc['activeComplaintsCount'] ?? 0} · Tap to inspect fixtures', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                         trailing: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -683,6 +936,39 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
                             style: TextStyle(color: isOk ? Colors.green.shade700 : Colors.red.shade700, fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ),
+                        children: [
+                          FutureBuilder<List<AssetModel>>(
+                            future: ApiService.getAssets(loc['id'] as int),
+                            builder: (ctx, aSnap) {
+                              if (aSnap.connectionState == ConnectionState.waiting) {
+                                return const Padding(padding: EdgeInsets.all(8), child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))));
+                              }
+                              final assets = aSnap.data ?? [];
+                              if (assets.isEmpty) {
+                                return const Padding(padding: EdgeInsets.all(8), child: Text('No fixtures mapped.', style: TextStyle(fontSize: 12, color: Colors.grey)));
+                              }
+                              return Column(
+                                children: assets.map((a) {
+                                  final isWorking = a.isWorking;
+                                  return ListTile(
+                                    dense: true,
+                                    leading: Icon(isWorking ? Icons.check_circle_outline : Icons.error_outline, size: 16, color: isWorking ? Colors.green : Colors.red),
+                                    title: Text(a.name, style: const TextStyle(fontSize: 13)),
+                                    subtitle: Text(a.comment ?? (isWorking ? 'Operational' : 'Degraded'), style: const TextStyle(fontSize: 11)),
+                                    trailing: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isWorking ? Colors.green.shade50 : Colors.red.shade50,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(a.status, style: TextStyle(color: isWorking ? Colors.green.shade700 : Colors.red.shade700, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                  );
+                                }).toList(),
+                              );
+                            },
+                          ),
+                        ],
                       );
                     },
                   );

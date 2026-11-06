@@ -231,6 +231,7 @@ class ApiService {
     required int complaintId,
     required String status,
     String? resolutionNotes,
+    String? disputeResolutionNotes,
   }) async {
     final url = Uri.parse('$baseUrl/complaints/$complaintId');
     final response = await http.patch(
@@ -240,6 +241,7 @@ class ApiService {
         'status': status.toUpperCase(),
         'resolutionNotes': resolutionNotes,
         'resolvedBy': currentUser?.fullName ?? currentUser?.username,
+        'disputeResolutionNotes': disputeResolutionNotes,
       }),
     );
 
@@ -249,6 +251,49 @@ class ApiService {
       final errorMsg = _extractErrorMessage(response);
       throw Exception(errorMsg ?? 'Failed to update complaint status');
     }
+  }
+
+  /// 8b. Formal Dispute Filing (Student contests assessment/resolution)
+  static Future<ComplaintModel> fileDispute({
+    required int complaintId,
+    required String reason,
+  }) async {
+    final url = Uri.parse('$baseUrl/complaints/$complaintId/dispute');
+    final response = await http.post(
+      url,
+      headers: _headers,
+      body: jsonEncode({
+        'reason': reason,
+        'studentName': currentUser?.fullName ?? currentUser?.username ?? 'Student',
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return ComplaintModel.fromJson(jsonDecode(response.body));
+    } else {
+      final errorMsg = _extractErrorMessage(response);
+      throw Exception(errorMsg ?? 'Failed to submit dispute');
+    }
+  }
+
+  /// 8c. Walkthrough Inspection Batch Sync
+  static Future<void> completeWalkthroughInspection({
+    required int locationId,
+    required String staffName,
+    required List<Map<String, dynamic>> assetUpdates,
+  }) async {
+    for (final item in assetUpdates) {
+      final assetId = item['assetId'] as int;
+      final status = item['status'] as String;
+      final comment = item['comment'] as String?;
+      await updateAssetStatus(
+        locationId: locationId,
+        assetId: assetId,
+        status: status,
+        comment: comment,
+      );
+    }
+    await markInspected(locationId: locationId, staffName: staffName);
   }
 
   /// 9. Fetch Manager Dashboard Executive Summary
@@ -332,6 +377,25 @@ class ApiService {
       final errorMsg = _extractErrorMessage(response);
       throw Exception(errorMsg ?? 'Failed to create location');
     }
+  }
+
+  /// 14. Get all locations on the current student's floor (their room, washrooms RR1-RR10, common laundry)
+  static Future<List<dynamic>> getMyFloorLocations() async {
+    try {
+      final url = Uri.parse('$baseUrl/me/floor-locations');
+      final response = await http.get(url, headers: _headers);
+
+      if (response.statusCode == 200) {
+        final List list = jsonDecode(response.body);
+        if (list.isNotEmpty) return list;
+      }
+    } catch (_) {}
+
+    // Fallback: if student has floorId or floorNumber, query floor locations
+    if (currentUser?.floorId != null) {
+      return getLocations(currentUser!.floorId!);
+    }
+    return getLocations(currentUser?.floorNumber ?? 1);
   }
 
   /// Helper to extract readable backend error messages
