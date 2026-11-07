@@ -507,6 +507,15 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     }
   }
 
+  IconData _getCategoryIcon(String? category) {
+    final cat = (category ?? '').toUpperCase();
+    if (cat.contains('ELECTR')) return Icons.bolt_rounded;
+    if (cat.contains('PLUMB')) return Icons.water_drop_rounded;
+    if (cat.contains('CARP')) return Icons.carpenter_rounded;
+    if (cat.contains('CLEAN')) return Icons.cleaning_services_rounded;
+    return Icons.build_circle_rounded;
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ApiService.currentUser;
@@ -514,6 +523,7 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     final filtered = _complaints.where((c) {
       if (_filterStatus == 'ALL') return true;
       if (_filterStatus == 'DISPUTED') return c.isDisputed || c.status == 'DISPUTED';
+      if (_filterStatus == 'HAZARDS') return c.isHazard;
       return c.status.toUpperCase() == _filterStatus;
     }).toList();
 
@@ -566,6 +576,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                   _buildFilterChip('IN_PROGRESS', 'In Progress (${_complaints.where((c) => c.status == 'IN_PROGRESS').length})'),
                   const SizedBox(width: 8),
                   _buildFilterChip('DISPUTED', 'Contested (${_complaints.where((c) => c.isDisputed || c.status == 'DISPUTED').length})'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('HAZARDS', 'Hazards (${_complaints.where((c) => c.isHazard).length})'),
                   const SizedBox(width: 8),
                   _buildFilterChip('RESOLVED', 'Resolved (${_complaints.where((c) => c.status == 'RESOLVED').length})'),
                 ],
@@ -650,6 +662,66 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                                           Text(c.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                                           const SizedBox(height: 4),
                                           Text(c.description, style: TextStyle(color: Colors.grey.shade800, fontSize: 13)),
+
+                                          // AI Triage Badge & Priority
+                                          if (c.aiCategory != null && c.aiCategory!.isNotEmpty) ...[
+                                            const SizedBox(height: 8),
+                                            Wrap(
+                                              spacing: 6,
+                                              runSpacing: 4,
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFEFF6FF),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(_getCategoryIcon(c.aiCategory), color: const Color(0xFF1E3A8A), size: 12),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        'AI: ${c.aiCategory}',
+                                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                if (c.aiRecommendation != null && !c.isHazard)
+                                                  Text(
+                                                    'Rec: ${c.aiRecommendation}',
+                                                    style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade700, fontStyle: FontStyle.italic),
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+
+                                          // Hazard Warning
+                                          if (c.isHazard) ...[
+                                            const SizedBox(height: 8),
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red.shade50,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: Colors.red.shade300),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 18),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'HAZARD: ${c.aiRecommendation ?? "Immediate dispatch required"}',
+                                                      style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.bold, fontSize: 11),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
 
                                           // Dispute Banner
                                           if (c.isDisputed) ...[
