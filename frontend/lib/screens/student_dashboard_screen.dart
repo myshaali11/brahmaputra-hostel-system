@@ -516,6 +516,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     }
   }
 
+  IconData _getCategoryIcon(String? category) {
+    final cat = (category ?? '').toUpperCase();
+    if (cat.contains('ELECTR')) return Icons.bolt_rounded;
+    if (cat.contains('PLUMB')) return Icons.water_drop_rounded;
+    if (cat.contains('CARP')) return Icons.carpenter_rounded;
+    if (cat.contains('CLEAN')) return Icons.cleaning_services_rounded;
+    return Icons.build_circle_rounded;
+  }
+
   IconData _getAssetIcon(String name) {
     final lower = name.toLowerCase();
     if (lower.contains('fan')) return Icons.mode_fan_off_outlined;
@@ -1082,6 +1091,67 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                         ),
                         const SizedBox(height: 6),
                         Text(c.description, style: TextStyle(color: Colors.grey.shade800, fontSize: 14)),
+
+                        // AI Triage Badge & Prediction
+                        if (c.aiCategory != null && c.aiCategory!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(_getCategoryIcon(c.aiCategory), color: const Color(0xFF1E3A8A), size: 13),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'AI Triage: ${c.aiCategory}',
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (c.aiRecommendation != null && !c.isHazard)
+                                Text(
+                                  'Recommendation: ${c.aiRecommendation}',
+                                  style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade700, fontStyle: FontStyle.italic),
+                                ),
+                            ],
+                          ),
+                        ],
+
+                        // Critical Hazard Alert Banner
+                        if (c.isHazard) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              border: Border.all(color: Colors.red.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'CRITICAL HAZARD DETECTED: ${c.aiRecommendation ?? "Immediate emergency inspection flagged."}',
+                                    style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.bold, fontSize: 11),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
 
                         // Dispute Contested Banner
                         if (c.isDisputed) ...[
